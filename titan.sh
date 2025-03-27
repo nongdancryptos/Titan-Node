@@ -1,23 +1,34 @@
 #!/bin/bash
 
-###############################################
-# (0) CÀI FONT & LOCALE (UTF-8) NGAY TỪ ĐẦU
-###############################################
-echo -e "\nĐang cài font và thiết lập locale UTF-8..."
+###############################################################################
+# (0) CÀI FONT & LOCALE (UTF-8) KHÔNG TƯƠNG TÁC (NON-INTERACTIVE)
+###############################################################################
+echo -e "\nĐang cài font và thiết lập locale UTF-8 (không tương tác)..."
+
+# Tắt giao diện hỏi đáp
+export DEBIAN_FRONTEND=noninteractive
+
+# Cập nhật gói
 sudo apt-get update -y
 
-# Cài gói font (bao gồm DejaVu, Liberation, Noto, font console v.v.)
+# Cài gói font + locales
 sudo apt-get install -y fonts-dejavu fonts-liberation fonts-noto-cjk \
                        console-setup console-terminus locales
 
-# Chạy dpkg-reconfigure để đảm bảo locale có UTF-8
-sudo dpkg-reconfigure locales
+# Mở khóa dòng en_US.UTF-8 trong /etc/locale.gen (bỏ dấu # nếu có)
+sudo sed -i 's/^# *\(en_US.UTF-8 UTF-8\)/\1/' /etc/locale.gen
 
-# Thiết lập tạm thời biến môi trường (ví dụ en_US.UTF-8)
+# Tạo locale (theo nội dung /etc/locale.gen)
+sudo locale-gen
+
+# Đặt LANG mặc định (toàn hệ thống)
+sudo update-locale LANG=en_US.UTF-8
+
+# Xuất các biến môi trường để session hiện tại cũng dùng
 export LANG=en_US.UTF-8
 export LC_ALL=en_US.UTF-8
 
-echo "Đã cài font và cấu hình locale xong. Bắt đầu phần code chính..."
+echo "Đã cài font và cấu hình locale xong (không cần bảng chọn). Bắt đầu phần code chính..."
 
 ##############################################################################
 # (1) TỰ ĐỘNG CHẠY TRONG SCREEN “titan” + KIỂM TRA NẾU ĐÃ TỒN TẠI THÌ VÀO LUÔN
@@ -25,8 +36,8 @@ echo "Đã cài font và cấu hình locale xong. Bắt đầu phần code chín
 if [ -z "$RUNNING_IN_SCREEN" ]; then
     # Kiểm tra screen, nếu chưa có thì cài
     if ! command -v screen &> /dev/null; then
-        sudo apt update
-        sudo apt install screen -y
+        sudo apt-get update -y
+        sudo apt-get install -y screen
     fi
 
     # Kiểm tra xem screen “titan” đã tồn tại chưa
@@ -62,24 +73,24 @@ NC='\033[0m'
 
 # Kiểm tra curl
 if ! command -v curl &> /dev/null; then
-    sudo apt update
-    sudo apt install curl -y
+    sudo apt-get update -y
+    sudo apt-get install -y curl
 fi
 
 # Logo
 channel_logo() {
     echo -e "${GREEN}"
     cat << "EOF"
-████████ ██ ████████  █████  ███    ██     ███    ██  ██████  ██████  ███████ 
-   ██    ██    ██    ██   ██ ████   ██     ████   ██ ██    ██ ██   ██ ██      
-   ██    ██    ██    ███████ ██ ██  ██     ██ ██  ██ ██    ██ ██   ██ █████   
-   ██    ██    ██    ██   ██ ██  ██ ██     ██  ██ ██ ██    ██ ██   ██ ██      
-   ██    ██    ██    ██   ██ ██   ████     ██   ████  ██████  ██████  ███████ 
-   
+████████ ██ ████████  █████  ███    ██     ███    ██  ██████  ██████  ███████
+   ██    ██    ██    ██   ██ ████   ██     ████   ██ ██    ██ ██   ██ ██
+   ██    ██    ██    ███████ ██ ██  ██     ██ ██  ██ ██    ██ ██   ██ █████
+   ██    ██    ██    ██   ██ ██  ██ ██     ██  ██ ██ ██    ██ ██   ██ ██
+   ██    ██    ██    ██   ██ ██   ████     ██   ████  ██████  ██████  ███████
+
 _____________________________________________________________________________________________________
 
 Ủng hộ: 0x431588aff8ea1becb1d8188d87195aa95678ba0a                                                                             
-                                                                              
+
 
 EOF
     echo -e "${NC}"
@@ -92,8 +103,8 @@ install_docker() {
     echo -e "${BLUE}Kiểm tra Docker...${NC}"
     if ! command -v docker &> /dev/null; then
         echo -e "${YELLOW}Docker chưa được cài đặt. Đang cài Docker...${NC}"
-        sudo apt update
-        sudo apt install docker.io -y
+        sudo apt-get update -y
+        sudo apt-get install -y docker.io
         sudo systemctl start docker
         sudo systemctl enable docker
         echo -e "${GREEN}Docker đã được cài đặt!${NC}"
@@ -134,7 +145,7 @@ download_node() {
     fi
 
     # Cài đặt lsof để kiểm tra cổng
-    sudo apt install lsof -y
+    sudo apt-get install -y lsof
 
     # Kiểm tra các cổng
     ports=(1234 55702 48710)
@@ -147,12 +158,12 @@ download_node() {
 
     echo -e "${GREEN}Các cổng đều sẵn sàng! Bắt đầu cài đặt...${NC}\n"
 
-    cd $HOME
+    cd "$HOME"
 
     # Cập nhật & cài các gói cần thiết
     echo -e "${BLUE}Cập nhật, nâng cấp gói...${NC}"
-    sudo apt update -y && sudo apt upgrade -y
-    sudo apt-get install nano git gnupg lsb-release apt-transport-https jq screen ca-certificates curl -y
+    sudo apt-get update -y && sudo apt-get upgrade -y
+    sudo apt-get install -y nano git gnupg lsb-release apt-transport-https jq screen ca-certificates curl
 
     # Cài Docker & Docker Compose
     install_docker
@@ -345,8 +356,8 @@ delete_node() {
             docker rm "$container_id"
         done
 
-    sudo rm -rf $HOME/.titanedge
-    sudo rm -rf $HOME/titan_storage_*
+    sudo rm -rf "$HOME/.titanedge"
+    sudo rm -rf "$HOME/titan_storage_*"
 
     echo -e "${GREEN}Node đã xóa hoàn toàn!${NC}"
 }
@@ -374,7 +385,7 @@ main_menu() {
         echo -e "${CYAN}5. Dừng node${NC}"
         echo -e "${CYAN}6. Xóa node${NC}"
         echo -e "${CYAN}7. Thoát${NC}"
-        
+
         echo -en "${YELLOW}Nhập số (1-7): ${NC}"
         read -r choice
         case $choice in
