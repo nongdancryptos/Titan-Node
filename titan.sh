@@ -28,6 +28,7 @@ ________________________________________________________________________________
 
 Donate: 0x431588aff8ea1becb1d8188d87195aa95678ba0a                                                                            
                                                                               
+
 EOF
 echo -e "${NC}"
 }
@@ -57,7 +58,7 @@ download_node() {
 
     cd $HOME
 
-    # Cập nhật và cài đặt các phụ thuộc
+    # Cập nhật và cài đặt các gói cần thiết
     echo -e "${BLUE}Cập nhật và cài đặt các gói cần thiết...${NC}"
     sudo apt update -y && sudo apt upgrade -y
     sudo apt-get install nano git gnupg lsb-release apt-transport-https jq screen ca-certificates curl -y
@@ -84,7 +85,6 @@ download_node() {
 
     echo -e "${GREEN}Các phụ thuộc cần thiết đã được cài đặt. Bắt đầu khởi động node...${NC}"
 
-    # Lógica từ launch_node
     # Dừng và xóa các container hiện tại (nếu có)
     docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) | while read container_id; do
         docker stop "$container_id"
@@ -257,7 +257,7 @@ main_menu() {
         echo -e "${CYAN}6. Xóa node${NC}"
         echo -e "${CYAN}7. Thoát${NC}"
         
-        echo -e "${YELLOW}Nhập số:${NC} "
+        echo -e "${YELLOW}Nhập số lựa chọn:${NC} "
         read choice
         case $choice in
             1) download_node ;;
