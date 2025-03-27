@@ -1,5 +1,27 @@
 #!/bin/bash
 
+#################################
+# Phần 1: Tự động chạy bên trong screen (nếu chưa)
+#################################
+if [ -z "$RUNNING_IN_SCREEN" ]; then
+    # 1) Kiểm tra & cài screen
+    if ! command -v screen &> /dev/null; then
+        sudo apt update
+        sudo apt install screen -y
+    fi
+
+    # 2) Tạo screen "titan" và chạy script trong đó (chế độ nền)
+    screen -S titan -dm bash -c "RUNNING_IN_SCREEN=1 $0"
+
+    echo "Đã tạo screen 'titan' và khởi chạy script bên trong."
+    echo "Để theo dõi/điều khiển, gõ: screen -r titan"
+    exit 0
+fi
+
+#################################
+# Phần 2: Nếu đã ở trong screen, ta chạy logic chính
+#################################
+
 # Màu sắc văn bản
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,10 +36,10 @@ if ! command -v curl &> /dev/null; then
     sudo apt install curl -y
 fi
 
-# Logo (có thể thay thế bằng của bạn)
+# Logo
 channel_logo() {
-echo -e "${GREEN}"
-cat << "EOF"
+    echo -e "${GREEN}"
+    cat << "EOF"
 ████████ ██ ████████  █████  ███    ██     ███    ██  ██████  ██████  ███████ 
    ██    ██    ██    ██   ██ ████   ██     ████   ██ ██    ██ ██   ██ ██      
    ██    ██    ██    ███████ ██ ██  ██     ██ ██  ██ ██    ██ ██   ██ █████   
@@ -30,10 +52,10 @@ ________________________________________________________________________________
                                                                               
 
 EOF
-echo -e "${NC}"
+    echo -e "${NC}"
 }
 
-# Kiểm tra và cài Docker
+# Kiểm tra & cài Docker
 install_docker() {
     echo -e "${BLUE}Kiểm tra Docker...${NC}"
     if ! command -v docker &> /dev/null; then
@@ -48,12 +70,13 @@ install_docker() {
     fi
 }
 
-# Kiểm tra và cài Docker Compose
+# Kiểm tra & cài Docker Compose
 install_docker_compose() {
     echo -e "${BLUE}Kiểm tra Docker Compose...${NC}"
     if ! command -v docker-compose &> /dev/null; then
         echo -e "${YELLOW}Docker Compose chưa được cài đặt. Đang cài đặt Docker Compose...${NC}"
-        sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | jq -r .tag_name)/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | jq -r .tag_name)/docker-compose-$(uname -s)-$(uname -m)" \
+            -o /usr/local/bin/docker-compose
         sudo chmod +x /usr/local/bin/docker-compose
         echo -e "${GREEN}Docker Compose đã được cài đặt thành công!${NC}"
     else
@@ -61,11 +84,11 @@ install_docker_compose() {
     fi
 }
 
-# Cài đặt Node
+# Hàm cài đặt node
 download_node() {
     echo -e "${BLUE}Bắt đầu cài đặt node...${NC}"
 
-    # Kiểm tra sự tồn tại của thư mục .titanedge
+    # Kiểm tra thư mục .titanedge
     if [ -d "$HOME/.titanedge" ]; then
         echo -e "${RED}Thư mục .titanedge đã tồn tại. Vui lòng xóa node và cài đặt lại. Thoát...${NC}"
         return 0
@@ -87,26 +110,27 @@ download_node() {
 
     cd $HOME
 
-    # Cập nhật và cài đặt các gói cần thiết
+    # Cập nhật & cài các gói cần thiết
     echo -e "${BLUE}Cập nhật và cài đặt các gói cần thiết...${NC}"
     sudo apt update -y && sudo apt upgrade -y
     sudo apt-get install nano git gnupg lsb-release apt-transport-https jq screen ca-certificates curl -y
 
-    # Cài đặt Docker
+    # Cài Docker
     install_docker
-
-    # Cài đặt Docker Compose
+    # Cài Docker Compose
     install_docker_compose
 
     echo -e "${GREEN}Các phụ thuộc cần thiết đã được cài đặt. Bắt đầu khởi động node...${NC}"
 
-    # Dừng và xóa các container hiện tại (nếu có)
-    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) | while read container_id; do
-        docker stop "$container_id"
-        docker rm "$container_id"
-    done
+    # Dừng & xóa container cũ (nếu có)
+    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" \
+        | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) \
+        | while read container_id; do
+            docker stop "$container_id"
+            docker rm "$container_id"
+        done
 
-    # Yêu cầu HASH
+    # Nhập HASH
     while true; do
         echo -e "${YELLOW}Nhập HASH của bạn:${NC}"
         read -p "> " HASH
@@ -120,7 +144,8 @@ download_node() {
     docker run --network=host -d -v ~/.titanedge:$HOME/.titanedge nezha123/titan-edge
     sleep 10
 
-    docker run --rm -it -v ~/.titanedge:$HOME/.titanedge nezha123/titan-edge bind --hash=$HASH https://api-test1.container1.titannet.io/api/v2/device/binding
+    docker run --rm -it -v ~/.titanedge:$HOME/.titanedge nezha123/titan-edge \
+        bind --hash=$HASH https://api-test1.container1.titannet.io/api/v2/device/binding
 
     echo -e "${GREEN}Node đã được cài đặt và khởi động thành công!${NC}"
 }
@@ -153,26 +178,28 @@ net.core.wmem_default=26214400
     fi
 }
 
+# Cài đặt nhiều node (vd: 5 node)
 many_node() {
-    # Dừng các container hiện có
-    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) | while read container_id; do
-        docker stop "$container_id"
-        docker rm "$container_id"
-    done
+    # Dừng các container cũ
+    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" \
+        | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) \
+        | while read container_id; do
+            docker stop "$container_id"
+            docker rm "$container_id"
+        done
 
-    # Yêu cầu HASH
+    # Nhập HASH
     echo -e "${YELLOW}Nhập HASH của bạn:${NC}"
     read -p "> " id
 
-    # Cập nhật cài đặt sysctl
+    # Cập nhật sysctl
     update_sysctl_config
 
     storage_gb=50
     start_port=1235
-    container_count=5  # Cài đặt 5 node
+    container_count=5  # Số node muốn cài
 
     public_ips=$(curl -s https://api.ipify.org)
-
     if [ -z "$public_ips" ]; then
         echo -e "${RED}Không thể lấy địa chỉ IP.${NC}"
         exit 1
@@ -184,17 +211,18 @@ many_node() {
     current_port=$start_port
     for ip in $public_ips; do
         echo -e "${BLUE}Cài đặt node trên IP $ip...${NC}"
-  
         for ((i=1; i<=container_count; i++)); do
             storage_path="$HOME/titan_storage_${ip}_${i}"
-  
             sudo mkdir -p "$storage_path"
             sudo chmod -R 777 "$storage_path"
   
-            container_id=$(docker run -d --restart always -v "$storage_path:$HOME/.titanedge/storage" --name "titan_${ip}_${i}" --net=host nezha123/titan-edge)
+            container_id=$(docker run -d --restart always \
+                -v "$storage_path:$HOME/.titanedge/storage" \
+                --name "titan_${ip}_${i}" \
+                --net=host \
+                nezha123/titan-edge)
   
             echo -e "${GREEN}Node titan_${ip}_${i} đã được khởi động với ID container $container_id${NC}"
-  
             sleep 30
   
             docker exec $container_id bash -c "\
@@ -203,38 +231,43 @@ many_node() {
                 echo 'Kho lưu trữ titan_${ip}_${i} đã được cài đặt với $storage_gb GB, cổng đã được đặt là $current_port'"
 
             docker restart $container_id
-
             docker exec $container_id bash -c "\
                 titan-edge bind --hash=$id https://api-test1.container1.titannet.io/api/v2/device/binding"
+
             echo -e "${GREEN}Node titan_${ip}_${i} đã được cài đặt thành công.${NC}"
-  
             current_port=$((current_port + 1))
         done
     done
-    echo -e "${GREEN}Tất cả 5 node đã được cài đặt thành công!${NC}"
+    echo -e "${GREEN}Tất cả $container_count node đã được cài đặt thành công!${NC}"
 }
 
 docker_logs() {
     echo -e "${BLUE}Kiểm tra nhật ký node...${NC}"
-    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) | while read container_id; do
-        docker logs "$container_id"
-    done
+    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" \
+        | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) \
+        | while read container_id; do
+            docker logs "$container_id"
+        done
     echo -e "${BLUE}Nhật ký đã được hiển thị. Quay lại menu...${NC}"
 }
 
 restart_node() {
     echo -e "${BLUE}Khởi động lại node...${NC}"
-    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) | while read container_id; do
-        docker restart "$container_id"
-    done
+    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" \
+        | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) \
+        | while read container_id; do
+            docker restart "$container_id"
+        done
     echo -e "${GREEN}Node đã được khởi động lại thành công!${NC}"
 }
 
 stop_node() {
     echo -e "${BLUE}Dừng node...${NC}"
-    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) | while read container_id; do
-        docker stop "$container_id"
-    done
+    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" \
+        | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) \
+        | while read container_id; do
+            docker stop "$container_id"
+        done
     echo -e "${GREEN}Node đã dừng!${NC}"
 }
 
@@ -243,13 +276,15 @@ delete_node() {
     read -p "> " checkjust
 
     echo -e "${BLUE}Đang xóa node...${NC}"
-    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) | while read container_id; do
-        docker stop "$container_id"
-        docker rm "$container_id"
-    done
+    docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" \
+        | shuf -n $(docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" | wc -l) \
+        | while read container_id; do
+            docker stop "$container_id"
+            docker rm "$container_id"
+        done
 
     sudo rm -rf $HOME/.titanedge
-    sudo rm -rf $HOME/titan_storage_*  # Xóa các đường dẫn lưu trữ bổ sung
+    sudo rm -rf $HOME/titan_storage_*
 
     echo -e "${GREEN}Node đã được xóa thành công!${NC}"
 }
@@ -272,7 +307,7 @@ main_menu() {
         echo -e "${CYAN}6. Xóa node${NC}"
         echo -e "${CYAN}7. Thoát${NC}"
         
-        echo -e "${YELLOW}Nhập số lựa chọn:${NC} "
+        echo -en "${YELLOW}Nhập số lựa chọn:${NC} "
         read choice
         case $choice in
             1) download_node ;;
@@ -287,4 +322,7 @@ main_menu() {
     done
 }
 
+###################
+# Gọi menu chính
+###################
 main_menu
