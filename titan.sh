@@ -33,6 +33,35 @@ EOF
 echo -e "${NC}"
 }
 
+# Kiểm tra và cài Docker
+install_docker() {
+    echo -e "${BLUE}Kiểm tra Docker...${NC}"
+    if ! command -v docker &> /dev/null; then
+        echo -e "${YELLOW}Docker chưa được cài đặt. Đang cài đặt Docker...${NC}"
+        sudo apt update
+        sudo apt install docker.io -y
+        sudo systemctl start docker
+        sudo systemctl enable docker
+        echo -e "${GREEN}Docker đã được cài đặt thành công!${NC}"
+    else
+        echo -e "${GREEN}Docker đã được cài đặt.${NC}"
+    fi
+}
+
+# Kiểm tra và cài Docker Compose
+install_docker_compose() {
+    echo -e "${BLUE}Kiểm tra Docker Compose...${NC}"
+    if ! command -v docker-compose &> /dev/null; then
+        echo -e "${YELLOW}Docker Compose chưa được cài đặt. Đang cài đặt Docker Compose...${NC}"
+        sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | jq -r .tag_name)/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+        echo -e "${GREEN}Docker Compose đã được cài đặt thành công!${NC}"
+    else
+        echo -e "${GREEN}Docker Compose đã được cài đặt.${NC}"
+    fi
+}
+
+# Cài đặt Node
 download_node() {
     echo -e "${BLUE}Bắt đầu cài đặt node...${NC}"
 
@@ -64,24 +93,10 @@ download_node() {
     sudo apt-get install nano git gnupg lsb-release apt-transport-https jq screen ca-certificates curl -y
 
     # Cài đặt Docker
-    if ! command -v docker &> /dev/null; then
-        echo -e "${BLUE}Cài đặt Docker...${NC}"
-        curl -fsSL https://get.docker.com -o get-docker.sh
-        sudo sh get-docker.sh
-        sudo usermod -aG docker $USER
-        rm get-docker.sh
-    else
-        echo -e "${YELLOW}Docker đã được cài đặt. Bỏ qua.${NC}"
-    fi
+    install_docker
 
     # Cài đặt Docker Compose
-    if ! command -v docker-compose &> /dev/null; then
-        echo -e "${BLUE}Cài đặt Docker Compose...${NC}"
-        sudo curl -L "https://github.com/docker/compose/releases/download/$(curl -s https://api.github.com/repos/docker/compose/releases/latest | jq -r .tag_name)/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        sudo chmod +x /usr/local/bin/docker-compose
-    else
-        echo -e "${YELLOW}Docker Compose đã được cài đặt. Bỏ qua.${NC}"
-    fi
+    install_docker_compose
 
     echo -e "${GREEN}Các phụ thuộc cần thiết đã được cài đặt. Bắt đầu khởi động node...${NC}"
 
