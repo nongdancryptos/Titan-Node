@@ -1,28 +1,55 @@
 #!/bin/bash
 
-####################################################################
-# (1) TỰ ĐỘNG CHẠY TRONG SCREEN VÀ TỰ ĐỘNG GẮN (ATTACH) VÀO SCREEN #
-####################################################################
+###############################################
+# (0) CÀI FONT & LOCALE (UTF-8) NGAY TỪ ĐẦU
+###############################################
+echo -e "\nĐang cài font và thiết lập locale UTF-8..."
+sudo apt-get update -y
+
+# Cài gói font (bao gồm DejaVu, Liberation, Noto, font console v.v.)
+sudo apt-get install -y fonts-dejavu fonts-liberation fonts-noto-cjk \
+                       console-setup console-terminus locales
+
+# Chạy dpkg-reconfigure để đảm bảo locale có UTF-8
+sudo dpkg-reconfigure locales
+
+# Thiết lập tạm thời biến môi trường (ví dụ en_US.UTF-8)
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
+echo "Đã cài font và cấu hình locale xong. Bắt đầu phần code chính..."
+
+##############################################################################
+# (1) TỰ ĐỘNG CHẠY TRONG SCREEN “titan” + KIỂM TRA NẾU ĐÃ TỒN TẠI THÌ VÀO LUÔN
+##############################################################################
 if [ -z "$RUNNING_IN_SCREEN" ]; then
-    # Kiểm tra screen, nếu chưa cài thì cài
+    # Kiểm tra screen, nếu chưa có thì cài
     if ! command -v screen &> /dev/null; then
         sudo apt update
         sudo apt install screen -y
     fi
 
-    # Tạo screen "titan", chạy script trong đó ở chế độ nền (-dm)
-    screen -S titan -dm bash -c "RUNNING_IN_SCREEN=1 $0"
+    # Kiểm tra xem screen “titan” đã tồn tại chưa
+    if screen -ls | grep -w "titan" &> /dev/null; then
+        echo "Screen 'titan' đã tồn tại. Gắn vào screen cũ..."
+        screen -r titan
+        exit 0
+    else
+        echo "Chưa có screen 'titan'. Tạo screen 'titan'..."
+        # Tạo screen “titan” ở chế độ nền (-dm), set biến RUNNING_IN_SCREEN=1
+        screen -S titan -dm bash -c "RUNNING_IN_SCREEN=1 $0"
 
-    # Đợi 1-2 giây cho chắc script bên trong screen khởi chạy
-    sleep 1
+        # Đợi 1-2 giây cho script bên trong screen khởi chạy
+        sleep 1
 
-    # Attach vào screen "titan" (tức là tự động vào screen)
-    screen -r titan
-    exit 0
+        # Tự động attach vào screen "titan"
+        screen -r titan
+        exit 0
+    fi
 fi
 
 ################################################################################
-# (2) PHẦN CODE CHÍNH: Chỉ chạy nếu đang ở bên trong screen (RUNNING_IN_SCREEN=1)
+# (2) PHẦN CODE CHÍNH: CHỈ CHẠY KHI ĐANG Ở BÊN TRONG SCREEN (RUNNING_IN_SCREEN=1)
 ################################################################################
 
 # Màu sắc
@@ -31,7 +58,7 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-NC='\033[0m' 
+NC='\033[0m'
 
 # Kiểm tra curl
 if ! command -v curl &> /dev/null; then
@@ -58,7 +85,9 @@ EOF
     echo -e "${NC}"
 }
 
+###############################################################################
 # (A) Kiểm tra & cài Docker
+###############################################################################
 install_docker() {
     echo -e "${BLUE}Kiểm tra Docker...${NC}"
     if ! command -v docker &> /dev/null; then
@@ -73,7 +102,9 @@ install_docker() {
     fi
 }
 
+###############################################################################
 # (B) Kiểm tra & cài Docker Compose
+###############################################################################
 install_docker_compose() {
     echo -e "${BLUE}Kiểm tra Docker Compose...${NC}"
     if ! command -v docker-compose &> /dev/null; then
@@ -90,7 +121,9 @@ install_docker_compose() {
     fi
 }
 
-# (C) Cài đặt node
+###############################################################################
+# (C) CÀI ĐẶT TITAN NODE
+###############################################################################
 download_node() {
     echo -e "${BLUE}Bắt đầu cài đặt node...${NC}"
 
@@ -116,7 +149,7 @@ download_node() {
 
     cd $HOME
 
-    # Cập nhật và cài các gói cần thiết
+    # Cập nhật & cài các gói cần thiết
     echo -e "${BLUE}Cập nhật, nâng cấp gói...${NC}"
     sudo apt update -y && sudo apt upgrade -y
     sudo apt-get install nano git gnupg lsb-release apt-transport-https jq screen ca-certificates curl -y
@@ -155,6 +188,9 @@ download_node() {
     echo -e "${GREEN}Node đã cài và khởi động thành công!${NC}"
 }
 
+###############################################################################
+# (D) UPDATE SYSCTL
+###############################################################################
 update_sysctl_config() {
     local CONFIG_VALUES="
 net.core.rmem_max=26214400
@@ -184,6 +220,9 @@ net.core.wmem_default=26214400
     fi
 }
 
+###############################################################################
+# (E) CÀI NHIỀU NODE (5 NODE)
+###############################################################################
 many_node() {
     # Dừng container cũ
     docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" \
@@ -252,6 +291,9 @@ many_node() {
     echo -e "${GREEN}Đã cài thành công $container_count node!${NC}"
 }
 
+###############################################################################
+# (F) XEM LOGS
+###############################################################################
 docker_logs() {
     echo -e "${BLUE}Xem nhật ký...${NC}"
     docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" \
@@ -262,6 +304,9 @@ docker_logs() {
     echo -e "${BLUE}Đã hiển thị xong nhật ký!${NC}"
 }
 
+###############################################################################
+# (G) KHỞI ĐỘNG LẠI NODE
+###############################################################################
 restart_node() {
     echo -e "${BLUE}Khởi động lại node...${NC}"
     docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" \
@@ -272,6 +317,9 @@ restart_node() {
     echo -e "${GREEN}Node đã khởi động lại xong!${NC}"
 }
 
+###############################################################################
+# (H) DỪNG NODE
+###############################################################################
 stop_node() {
     echo -e "${BLUE}Dừng node...${NC}"
     docker ps -a --filter "ancestor=nezha123/titan-edge" --format "{{.ID}}" \
@@ -282,6 +330,9 @@ stop_node() {
     echo -e "${GREEN}Node đã dừng!${NC}"
 }
 
+###############################################################################
+# (I) XOÁ NODE
+###############################################################################
 delete_node() {
     echo -en "${YELLOW}Xác nhận xóa node (nhập ký tự bất kỳ, Ctrl+C để hủy): ${NC}"
     read -r sure
@@ -300,11 +351,17 @@ delete_node() {
     echo -e "${GREEN}Node đã xóa hoàn toàn!${NC}"
 }
 
+###############################################################################
+# (J) THOÁT SCRIPT
+###############################################################################
 exit_from_script() {
     echo -e "${BLUE}Thoát script...${NC}"
     exit 0
 }
 
+###############################################################################
+# (K) MENU CHÍNH
+###############################################################################
 main_menu() {
     while true; do
         channel_logo
@@ -333,8 +390,10 @@ main_menu() {
     done
 }
 
-# Gọi menu chính
+###############################################################################
+# (L) GỌI HÀM MAIN_MENU - MENU CHÍNH
+###############################################################################
 main_menu
 
-# Khi menu thoát, nếu bạn muốn giữ screen mở, để user vẫn ở lại terminal, ta có thể:
-exec bash  # Giữ phiên screen ở cuối, tránh screen tự đóng.
+# Giữ session lại trong screen để không bị đóng
+exec bash
